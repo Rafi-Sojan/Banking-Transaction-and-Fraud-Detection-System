@@ -1,0 +1,67 @@
+# Environment variables
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Python testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ML datasets and trained models
+ml/data/raw/*
+ml/data/processed/*
+ml/models/*
+
+# Keep the folders in GitHub
+!ml/data/raw/.gitkeep
+!ml/data/processed/.gitkeep
+!ml/models/.gitkeep
+
+# React / Node
+node_modules/
+dist/
+build/
+.vite/
+
+# Logs
+*.log
+
+# C++ / CMake build files
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+*.o
+*.obj
+*.exe
+
+# Local database files
+postgres-data/
+mongodb-data/
+
+# Database backups
+*.dump
+*.backup
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.swp
+*~

@@ -1,0 +1,30 @@
+name: ML CI
+
+on:
+  push:
+    paths:
+      - "ml/**"
+  pull_request:
+    paths:
+      - "ml/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install numpy pandas scikit-learn
+
+      - name: Check ML code
+        run: |
+          python -m compileall ml/src
