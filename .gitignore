@@ -47,6 +47,10 @@ CMakeCache.txt
 # Local database files
 postgres-data/
 mongodb-data/
+.postgres/
+
+# Locally extracted database tooling
+tools/
 
 # Database backups
 *.dump
