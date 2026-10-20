@@ -1,6 +1,8 @@
 # Environment variables
 .env
 .env.local
+.env.*
+!.env.example
 
 # Python
 __pycache__/
@@ -12,6 +14,8 @@ venv/
 .pytest_cache/
 .coverage
 htmlcov/
+.mypy_cache/
+.ruff_cache/
 
 # Jupyter
 .ipynb_checkpoints/

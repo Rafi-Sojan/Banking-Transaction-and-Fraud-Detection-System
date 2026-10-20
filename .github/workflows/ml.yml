@@ -1,12 +1,15 @@
 name: ML CI
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - "ml/**"
+      - ".github/workflows/ml.yml"
   pull_request:
     paths:
       - "ml/**"
+      - ".github/workflows/ml.yml"
 
 jobs:
   test:

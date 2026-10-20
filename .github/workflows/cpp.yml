@@ -1,12 +1,15 @@
 name: C++ CI
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - "cpp/**"
+      - ".github/workflows/cpp.yml"
   pull_request:
     paths:
       - "cpp/**"
+      - ".github/workflows/cpp.yml"
 
 jobs:
   build:
@@ -21,8 +24,20 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -S cpp -B cpp/build
+          cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
 
       - name: Build
         run: |
-          cmake --build cpp/build
+          cmake --build cpp/build --config Release --parallel
+
+      - name: Run C++ tests
+        run: |
+          ctest --test-dir cpp/build --output-on-failure -C Release
+
+      - name: Run JSON contract smoke test
+        shell: bash
+        run: |
+          printf '%s\n' '{"transaction_id":"ci-transaction","amount":7500,"transaction_type":"card_purchase","transaction_count_10m":6}' \
+            | ./cpp/build/fraud_engine > cpp/build/ci-output.json
+          grep -q '"transaction_id":"ci-transaction"' cpp/build/ci-output.json
+          grep -q '"risk_level":"high"' cpp/build/ci-output.json

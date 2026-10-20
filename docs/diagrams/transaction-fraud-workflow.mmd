@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant User as React frontend
+    participant API as FastAPI
+    participant PG as PostgreSQL
+    participant Rules as C++ rules
+    participant ML as Python ML
+    participant Policy as Decision service
+    participant Investigator as Investigator
+
+    User->>API: Submit simulated transaction
+    API->>API: Authenticate, authorize, validate
+    API->>PG: Read account and transaction constraints
+    API->>Rules: Send decision-time JSON features
+    Rules-->>API: Rule score, rule results, reasons
+    API->>ML: Request versioned model inference
+    ML-->>API: Fraud probability and model metadata
+    API->>Policy: Combine rule and ML outputs
+    Policy->>PG: Process transfer or persist held result
+    Policy->>PG: Create fraud alert when required
+    PG-->>User: Transaction status and alert summary
+    Investigator->>API: Review alert and record outcome
+    API->>PG: Close investigation and write audit trail

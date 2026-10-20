@@ -1,0 +1,12 @@
+flowchart LR
+    UI[React frontend] -->|REST / JSON| API[FastAPI backend]
+    API --> AUTH[Auth and RBAC]
+    API --> DEC[Decision service]
+    API --> REPO[Repository and service layer]
+    REPO --> PG[(PostgreSQL<br/>authoritative records)]
+    REPO --> MDB[(MongoDB<br/>supporting events)]
+    DEC --> CPP[C++ rule engine<br/>JSON subprocess]
+    DEC --> ML[Python ML inference]
+    DEC --> POLICY[Configurable decision policy]
+    POLICY --> REPO
+    REPO --> AUDIT[Audit and investigation workflow]

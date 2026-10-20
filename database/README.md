@@ -43,6 +43,10 @@ The test suite validates schema presence, seed data, atomic transfers,
 idempotency, transaction status history, constraint enforcement, and high-risk
 fraud-alert handling. Tests run inside a transaction and roll back at the end.
 
+For exact parameters, validation, side effects, and error conditions of every
+database routine and trigger function, see
+[docs/function-reference.md](../docs/function-reference.md).
+
 ## Design decisions
 
 - `transactions` is used instead of the reserved SQL word `transaction`.

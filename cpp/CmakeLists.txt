@@ -1,0 +1,34 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(banking_fraud_engine VERSION 0.1.0 LANGUAGES CXX)
+
+include(CTest)
+
+option(BUILD_TESTING "Build the C++ fraud-engine tests" ON)
+
+add_library(fraud_engine_lib
+    src/fraud_rules.cpp
+    src/transaction_analyzer.cpp
+)
+
+target_include_directories(fraud_engine_lib
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_compile_features(fraud_engine_lib PUBLIC cxx_std_17)
+
+if(MSVC)
+    target_compile_options(fraud_engine_lib PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(fraud_engine_lib PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_executable(fraud_engine src/main.cpp)
+target_link_libraries(fraud_engine PRIVATE fraud_engine_lib)
+
+if(BUILD_TESTING)
+    add_executable(fraud_engine_tests tests/test_fraud_engine.cpp)
+    target_link_libraries(fraud_engine_tests PRIVATE fraud_engine_lib)
+    add_test(NAME fraud_engine_unit_tests COMMAND fraud_engine_tests)
+endif()

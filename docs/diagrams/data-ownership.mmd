@@ -1,0 +1,24 @@
+flowchart TB
+    subgraph Relational[PostgreSQL: authoritative]
+        Accounts[Accounts and balances]
+        Transactions[Transactions and status history]
+        Alerts[Alerts and investigations]
+        Identity[Users and roles]
+        Config[Rules and ML metadata]
+        Audit[Audit log]
+    end
+
+    subgraph Events[MongoDB: supporting events]
+        Login[Login events]
+        Device[Device signals]
+        Behavior[Behavioral metadata]
+    end
+
+    Accounts --> Transactions
+    Transactions --> Alerts
+    Alerts --> Audit
+    Identity --> Audit
+    Config --> Alerts
+    Login --> Alerts
+    Device --> Alerts
+    Behavior --> Alerts

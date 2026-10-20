@@ -1,0 +1,50 @@
+name: Database CI
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "database/**"
+      - "tests/integration/**"
+      - ".github/workflows/database.yml"
+  pull_request:
+    paths:
+      - "database/**"
+      - "tests/integration/**"
+      - ".github/workflows/database.yml"
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: banking_fraud
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d banking_fraud"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Initialize schema and seed data
+        env:
+          PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -p 5432 -U postgres -d banking_fraud -v ON_ERROR_STOP=1 -f database/setup.sql
+
+      - name: Run database integration tests
+        env:
+          PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -p 5432 -U postgres -d banking_fraud -v ON_ERROR_STOP=1 -f tests/integration/database_smoke.sql
