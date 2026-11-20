@@ -4,21 +4,23 @@ The ML component provides a reproducible PaySim baseline and a controlled JSON
 inference process. It is separate from the C++ deterministic rules engine and
 does not authorize transactions or write to PostgreSQL directly.
 
+The acquired dataset and provenance record are documented in
+[DATASET_CARD.md](DATASET_CARD.md). Raw data and trained artifacts are ignored
+by Git.
+
 ## Feature policy
 
-Training uses only decision-time PaySim features:
+Training uses only non-leaking decision-time PaySim features:
 
 - `amount`
 - `step`
-- `oldbalanceOrg`
-- `newbalanceOrig`
-- `oldbalanceDest`
-- `newbalanceDest`
 - `type`
 
-The target `isFraud` and simulator flag `isFlaggedFraud` are not used as model
-inputs. The trainer requires both fraud classes to be present and reports
-precision, recall, F1, PR-AUC, and ROC-AUC.
+The target `isFraud`, simulator flag `isFlaggedFraud`, customer identifiers,
+and all four PaySim balance columns are excluded. The dataset card warns that
+the balances can leak the fraud outcome because fraudulent transactions are
+cancelled. The trainer requires both fraud classes and reports precision,
+recall, F1, PR-AUC, and ROC-AUC.
 
 ## Train a model
 
@@ -73,8 +75,8 @@ and write an error to stderr.
 
 ## Backend activation
 
-The backend keeps ML disabled by default until a trained model exists. To
-enable it, configure:
+The backend keeps ML disabled by default even though the local baseline has
+been trained and registered. To enable it, configure:
 
 ```text
 ML_ENABLED=true
@@ -87,4 +89,33 @@ When enabled, the backend combines the C++ rule score and ML probability using
 the configured weights. If the model is unavailable or fails, the request
 returns an error; it is never silently treated as low risk. Register the model
 as `deployed` in PostgreSQL for `fraud_alert.ml_model_id` to reference it.
+
+## Push-time validation pipeline
+
+The ML workflow runs on pushes and pull requests that touch `ml/` or the ML
+workflow itself. It performs the following checks in order:
+
+1. Installs the pinned ML dependencies from `ml/requirements.txt`.
+2. Compiles the ML source and runs the unit, CLI, and pipeline tests.
+3. Validates the committed PaySim-shaped fixture, normalizes it to the
+   leakage-safe feature frame, trains a short-lived model, and writes a JSON
+   report with dataset counts and evaluation metrics.
+4. Uploads the processed fixture, model bundle, and report as a workflow
+   artifact. The real PaySim CSV and local model artifacts remain ignored and
+   are never required in GitHub Actions.
+
+Run the same fixture pipeline locally with:
+
+```powershell
+$env:PYTHONPATH = "."
+python -m ml.src.pipeline `
+  --input ml\tests\fixtures\paysim_fixture.csv `
+  --output-dir ml\pipeline-output `
+  --model-name paysim-ci `
+  --version local
+```
+
+For an authorized full PaySim CSV, replace the fixture path. The full-dataset
+run is intended for local or separately managed data jobs because raw data and
+trained artifacts are intentionally not committed.
 

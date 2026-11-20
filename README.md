@@ -19,9 +19,9 @@ data and rules services:
   both invoked through controlled JSON subprocesses.
 - Automated unit, integration, C++ build, and database validation workflows.
 
-Frontend API wiring remains separate. The ML engine is implemented but remains
-disabled until a trained model is supplied. When enabled, an unavailable ML
-component is an error, never a low-risk result.
+Frontend API wiring remains separate. The ML engine is implemented and a local
+PaySim baseline has been trained, but ML remains disabled by default. When
+enabled, an unavailable ML component is an error, never a low-risk result.
 
 ## Architecture
 
@@ -129,6 +129,7 @@ python -m ml.src.train `
 ML is activated in the backend with `ML_ENABLED=true` and a configured model
 path. See [ml/README.md](ml/README.md) for the feature policy, JSON contract,
 metrics, and deployment metadata requirements.
+The acquired dataset provenance is recorded in [ml/DATASET_CARD.md](ml/DATASET_CARD.md).
 
 ## Local backend setup
 
@@ -191,7 +192,8 @@ GitHub Actions workflows are available for:
 - PostgreSQL initialization and integration tests.
 - C++ CMake build, CTest, and JSON contract smoke testing.
 - Frontend build scaffolding.
-- ML source validation scaffolding.
+- ML source validation, leakage-safe fixture processing, model testing, and
+  artifact reporting.
 
 Each workflow supports manual dispatch and triggers on relevant source or
 workflow-file changes. Frontend integration remains separate; ML source and

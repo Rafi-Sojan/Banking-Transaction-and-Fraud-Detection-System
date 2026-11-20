@@ -20,8 +20,8 @@ detection.
 | Authoritative data | PostgreSQL | Schema, routines, views, seed data, and integration tests implemented. |
 | Supporting events | MongoDB | Optional writes, indexes, and investigator/admin event-query API implemented. |
 | Deterministic fraud rules | C++17 | Library, executable, JSON contract, and unit tests implemented. |
-| ML inference | Python, scikit-learn, Joblib | PaySim training and JSON inference engine implemented; activation remains opt-in until a trained model is supplied. |
-| CI | GitHub Actions | Backend/PostgreSQL/C++ integration, database smoke, C++ validation, and ML checks implemented. |
+| ML inference | Python, scikit-learn, Joblib | Leakage-safe PaySim baseline trained and registered locally; activation remains opt-in pending temporal validation and threshold tuning. |
+| CI | GitHub Actions | Backend/PostgreSQL/C++ integration, database smoke, C++ validation, and ML validation, processing, model testing, and artifact reporting implemented. |
 
 ## Component boundaries
 

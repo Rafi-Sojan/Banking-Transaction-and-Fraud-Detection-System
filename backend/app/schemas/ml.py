@@ -23,4 +23,5 @@ class MLModelCreate(BaseModel):
 class MLModelRead(MLModelCreate):
     model_id: int
     created_at: datetime
+    deployment_status: str = Field(pattern=r"^(offline|staged|deployed|retired)$")
 

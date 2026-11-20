@@ -24,6 +24,7 @@ htmlcov/
 ml/data/raw/*
 ml/data/processed/*
 ml/models/*
+ml/pipeline-output/
 
 # Keep the folders in GitHub
 !ml/data/raw/.gitkeep

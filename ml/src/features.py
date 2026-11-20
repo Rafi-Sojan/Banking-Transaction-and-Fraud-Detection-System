@@ -1,8 +1,9 @@
 """Feature contracts shared by PaySim training and online inference.
 
-The target column and simulator-only fields are deliberately excluded from the
-feature set. The selected columns are available at transaction decision time
-and avoid using ``isFraud`` or ``isFlaggedFraud`` as model inputs.
+The target, simulator flags, customer identifiers, and PaySim balance columns
+are deliberately excluded. PaySim documents that its balance columns can leak
+fraud because detected fraudulent transactions are cancelled. The selected
+features are limited to fields available before that outcome is known.
 """
 
 from __future__ import annotations
@@ -14,15 +15,20 @@ import pandas as pd
 NUMERIC_FEATURES = (
     "amount",
     "step",
-    "oldbalanceOrg",
-    "newbalanceOrig",
-    "oldbalanceDest",
-    "newbalanceDest",
 )
 CATEGORICAL_FEATURES = ("type",)
 FEATURE_COLUMNS = NUMERIC_FEATURES + CATEGORICAL_FEATURES
 TARGET_COLUMN = "isFraud"
-EXCLUDED_COLUMNS = {TARGET_COLUMN, "isFlaggedFraud"}
+EXCLUDED_COLUMNS = {
+    TARGET_COLUMN,
+    "isFlaggedFraud",
+    "nameOrig",
+    "nameDest",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "oldbalanceDest",
+    "newbalanceDest",
+}
 
 
 def validate_training_frame(frame: pd.DataFrame) -> None:
@@ -55,9 +61,10 @@ def training_target(frame: pd.DataFrame) -> pd.Series:
 def online_features(payload: dict[str, Any]) -> pd.DataFrame:
     """Build a one-row inference frame from a backend JSON payload.
 
-    Missing optional PaySim balance/step fields use neutral zero values. The
+    Missing optional PaySim step fields use a neutral zero value. The
     transaction amount and type are required because they are part of the
-    backend decision contract.
+    backend decision contract. Balance and customer-identity fields are not
+    accepted as model inputs.
     """
 
     if "amount" not in payload or "transaction_type" not in payload:
@@ -65,11 +72,7 @@ def online_features(payload: dict[str, Any]) -> pd.DataFrame:
     row = {
         "amount": payload["amount"],
         "step": payload.get("step", 0),
-        "oldbalanceOrg": payload.get("oldbalanceOrg", payload.get("old_balance_origin", 0)),
-        "newbalanceOrig": payload.get("newbalanceOrig", payload.get("new_balance_origin", 0)),
-        "oldbalanceDest": payload.get("oldbalanceDest", payload.get("old_balance_destination", 0)),
-        "newbalanceDest": payload.get("newbalanceDest", payload.get("new_balance_destination", 0)),
-        "type": payload["transaction_type"],
+        "type": str(payload["transaction_type"]).upper(),
     }
     frame = pd.DataFrame([row], columns=FEATURE_COLUMNS)
     for column in NUMERIC_FEATURES:

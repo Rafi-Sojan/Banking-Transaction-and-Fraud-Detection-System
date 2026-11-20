@@ -14,6 +14,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout code
@@ -33,3 +35,21 @@ jobs:
         run: |
           python -m compileall ml/src
           PYTHONPATH=. pytest ml/tests -q
+
+      - name: Run validation, processing, and model pipeline
+        env:
+          PYTHONPATH: .
+          PIPELINE_OUTPUT: ${{ runner.temp }}/paysim-ci-output
+        run: |
+          python -m ml.src.pipeline \
+            --input ml/tests/fixtures/paysim_fixture.csv \
+            --output-dir "$PIPELINE_OUTPUT" \
+            --model-name paysim-ci \
+            --version "${{ github.sha }}"
+
+      - name: Upload ML pipeline artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: paysim-pipeline-${{ github.sha }}
+          path: ${{ runner.temp }}/paysim-ci-output
+          if-no-files-found: error

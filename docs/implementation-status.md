@@ -16,7 +16,7 @@ accounts, process real payments, or provide production-grade fraud decisions.
 | C++ CI workflow | Implemented | Builds, runs CTest, and validates the JSON contract. |
 | FastAPI backend core | Implemented | API routers, auth, PostgreSQL transaction/fraud services, C++ adapter, investigation workflow, and health endpoints are available. |
 | MongoDB event store | Implemented, supporting | Best-effort writes, event indexes, bounded query API, and health reporting are available; PostgreSQL remains authoritative. |
-| Python ML engine | Implemented, opt-in | PaySim feature contract, reproducible training, Joblib model bundle, JSON inference process, backend adapter, and score-combination policy are implemented. A trained model is not committed. |
+| Python ML engine | Implemented, opt-in | Leakage-safe PaySim feature contract, validation/processing/training pipeline, fixture-backed model tests, full-dataset baseline training, Joblib model bundle, JSON inference process, backend adapter, score-combination policy, and local model registration are implemented. Raw data and artifacts remain uncommitted. |
 | Frontend workflow integration | Not implemented | The existing frontend is not yet connected to the completed database and fraud engine. |
 
 ## Database implementation
@@ -135,7 +135,8 @@ configured weights.
 
 The backend implementation is covered by its Python dependency set, unit tests,
 and database-backed API integration tests. Frontend integration remains
-separate; ML now has its own training, inference, and CI workflow.
+separate; ML now has its own validation, processing, model-testing, training,
+inference, and CI workflow.
 
 ## Verification completed
 
@@ -154,6 +155,10 @@ Backend tests passed (6 tests, including database-backed API integration)
 FastAPI import and health checks passed
 Backend-to-C++ fraud-engine smoke test passed
 ML engine unit and JSON-contract tests passed (2 tests)
+PaySim dataset validated and leakage-safe baseline trained
+ML-enabled backend integration passed (2 tests)
+PaySim baseline registered and deployed in local PostgreSQL metadata
+ML fixture validation, processing, and model pipeline implemented
 fraud_engine_tests: all tests passed
 fraud_engine JSON smoke test returned the expected high-risk result
 git diff --check passed (with normal Windows line-ending warnings)
@@ -166,6 +171,6 @@ verification.
 
 ## Remaining scoped work
 
-1. Train and validate a model using an authorized synthetic PaySim dataset, then register an artifact as deployed in PostgreSQL.
+1. Perform temporal validation and threshold tuning before treating the baseline as an operational model.
 2. Connect the frontend transaction and investigator workflows.
 3. Replace the in-memory rate limiter with a shared production-grade control if this simulation is ever deployed beyond a single process.

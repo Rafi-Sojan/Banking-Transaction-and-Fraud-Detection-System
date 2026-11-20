@@ -365,10 +365,11 @@ The ML implementation is under `ml/src/` and is documented in
 
 ### `training_features` and `training_target`
 
-These functions validate the PaySim training frame and select only approved
-decision-time features. They reject missing required columns, missing fraud
-classes, and non-binary targets. `isFraud` is the target and `isFlaggedFraud`
-is excluded from model inputs.
+These functions validate the PaySim training frame and select only approved,
+non-leaking decision-time features: `amount`, `step`, and `type`. They reject
+missing required columns, missing fraud classes, and non-binary targets.
+`isFraud`, `isFlaggedFraud`, customer identifiers, and all balance columns are
+excluded from model inputs.
 
 ### `train_model`
 
@@ -377,6 +378,17 @@ a preprocessing pipeline and class-balanced logistic-regression baseline,
 evaluates it with precision, recall, F1, PR-AUC, and ROC-AUC, then persists a
 versioned Joblib bundle. It does not download data or register a model as
 deployed automatically.
+
+### `validate_dataset`, `process_dataset`, and `run_pipeline`
+
+`ml.src.pipeline.validate_dataset(input_path)` streams a PaySim CSV, verifies
+the required raw columns, numeric domains, binary labels, non-empty transaction
+types, and both fraud classes, then returns row, fraud-rate, type-count, and
+feature-contract metadata. `process_dataset(input_path, output_path)` writes a
+normalized training frame containing only `amount`, `step`, `type`, and
+`isFraud`. `run_pipeline(input_path, output_dir, model_name, version)` composes
+those steps with `train_model` and writes `pipeline-report.json`; it does not
+mutate PostgreSQL or deploy the generated model.
 
 ### `MLInferenceEngine.predict`
 
