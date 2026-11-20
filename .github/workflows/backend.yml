@@ -51,6 +51,13 @@ jobs:
       - name: Install native dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake g++ postgresql-client
 
+      - name: Normalize CMake filename casing
+        run: |
+          if [ -f cpp/CmakeLists.txt ] && [ ! -f cpp/CMakeLists.txt ]; then
+            mv cpp/CmakeLists.txt cpp/CMakeLists.txt
+          fi
+          test -f cpp/CMakeLists.txt
+
       - name: Build C++ fraud engine
         run: |
           cmake -S cpp -B cpp/build -DBUILD_TESTING=ON
