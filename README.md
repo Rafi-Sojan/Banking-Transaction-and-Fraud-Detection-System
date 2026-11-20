@@ -48,7 +48,7 @@ replace PostgreSQL transaction state.
 backend/                 FastAPI application and backend tests
 cpp/                     C++17 fraud-rule engine and CTest target
 database/                PostgreSQL schema, routines, views, and seed data
-frontend/                React/Vite application scaffolding
+frontend/                React/Vite authenticated operations client
 ml/                      PaySim preprocessing, training, and inference engine
 tests/integration/       PostgreSQL integration smoke tests
 docs/                    Architecture, design, and implementation records
@@ -131,6 +131,20 @@ path. See [ml/README.md](ml/README.md) for the feature policy, JSON contract,
 metrics, and deployment metadata requirements.
 The acquired dataset provenance is recorded in [ml/DATASET_CARD.md](ml/DATASET_CARD.md).
 
+### React frontend
+
+Run the authenticated operations client after starting the backend:
+
+```powershell
+cd frontend
+npm ci
+$env:VITE_API_BASE_URL = "http://localhost:8000/api/v1"
+npm run dev
+```
+
+The client provides dashboard, transfer, transaction, fraud-alert, and
+investigation workflows while keeping ledger and decision logic in the backend.
+
 ## Local backend setup
 
 Create a virtual environment, install the backend dependencies, and start the
@@ -191,13 +205,13 @@ GitHub Actions workflows are available for:
 - Backend dependency installation, PostgreSQL provisioning, C++ build, and API integration tests.
 - PostgreSQL initialization and integration tests.
 - C++ CMake build, CTest, and JSON contract smoke testing.
-- Frontend build scaffolding.
+- Frontend authenticated operations client build.
 - ML source validation, leakage-safe fixture processing, model testing, and
   artifact reporting.
 
 Each workflow supports manual dispatch and triggers on relevant source or
-workflow-file changes. Frontend integration remains separate; ML source and
-inference are covered independently until an authorized trained model is supplied.
+workflow-file changes. The frontend remains a separate client boundary, while
+ML source, temporal validation, and inference are covered independently.
 
 ## Documentation
 
@@ -219,5 +233,5 @@ inference are covered independently until an authorized trained model is supplie
 - Keep deterministic rules explainable and auditable.
 - Do not store plaintext passwords or raw card numbers.
 - Keep secrets in environment variables and never commit `.env` files.
-- Treat frontend and ML integration as separate boundaries until explicitly
-  implemented and tested.
+- Treat frontend and ML as separate boundaries with explicit API and subprocess
+  contracts.

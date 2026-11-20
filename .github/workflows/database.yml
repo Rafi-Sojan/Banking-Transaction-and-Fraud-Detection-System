@@ -16,6 +16,8 @@ on:
 jobs:
   integration:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     services:
       postgres:

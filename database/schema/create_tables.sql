@@ -203,3 +203,11 @@ CREATE TABLE IF NOT EXISTS transaction_status_history (
     new_status VARCHAR(20) NOT NULL,
     changed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Shared abuse-control state. The API updates this row atomically so multiple
+-- worker processes enforce the same window instead of keeping per-process data.
+CREATE TABLE IF NOT EXISTS rate_limit_bucket (
+    bucket_key VARCHAR(320) PRIMARY KEY,
+    window_started_at TIMESTAMPTZ NOT NULL,
+    request_count INTEGER NOT NULL CHECK (request_count >= 0)
+);

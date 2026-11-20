@@ -18,6 +18,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/banking_fraud
       FRAUD_ENGINE_PATH: ${{ github.workspace }}/cpp/build/fraud_engine

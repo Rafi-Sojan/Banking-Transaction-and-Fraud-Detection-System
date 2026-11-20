@@ -39,7 +39,8 @@ The locally trained baseline is `ml/models/paysim-baseline.joblib`, version
 PostgreSQL instance. The repository does not contain the raw CSV or binary
 model artifact.
 
-Baseline holdout metrics at threshold `0.5`:
+The original local artifact was trained with the earlier random holdout at
+threshold `0.5`:
 
 | Metric | Value |
 |---|---:|
@@ -50,5 +51,6 @@ Baseline holdout metrics at threshold `0.5`:
 | ROC-AUC | 0.919355 |
 
 These metrics are a reproducible academic baseline, not evidence of production
-fraud-detection performance. Threshold selection and temporal validation remain
-necessary before any operational use.
+fraud-detection performance. The training pipeline now performs temporal
+validation and tunes the decision threshold; regenerate the ignored local
+artifact before using it for any operational experiment.

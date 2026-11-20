@@ -17,11 +17,12 @@ BEGIN
           'branch', 'customer', 'role', 'merchant_category', 'location',
           'account', 'merchant', 'card', 'app_user', 'fraud_rule', 'ml_model',
           'transactions', 'fraud_alert', 'fraud_rule_result', 'investigation',
-          'investigation_action', 'audit_log', 'transaction_status_history'
+          'investigation_action', 'audit_log', 'transaction_status_history',
+          'rate_limit_bucket'
       );
 
-    IF v_table_count <> 18 THEN
-        RAISE EXCEPTION 'Expected 18 core tables, found %', v_table_count;
+    IF v_table_count <> 19 THEN
+        RAISE EXCEPTION 'Expected 19 core tables, found %', v_table_count;
     END IF;
 
     IF (SELECT COUNT(*) FROM customer) < 3 THEN
@@ -30,6 +31,33 @@ BEGIN
 
     IF (SELECT COUNT(*) FROM account) < 2 THEN
         RAISE EXCEPTION 'Expected seeded accounts';
+    END IF;
+END
+$$;
+
+DO $$
+DECLARE
+    v_first_count INTEGER;
+    v_second_count INTEGER;
+BEGIN
+    INSERT INTO rate_limit_bucket (bucket_key, window_started_at, request_count)
+    VALUES ('database-smoke:/api/v1/auth/login', CURRENT_TIMESTAMP, 1)
+    ON CONFLICT (bucket_key) DO UPDATE
+    SET request_count = rate_limit_bucket.request_count + 1;
+    SELECT request_count INTO v_first_count
+    FROM rate_limit_bucket
+    WHERE bucket_key = 'database-smoke:/api/v1/auth/login';
+
+    INSERT INTO rate_limit_bucket (bucket_key, window_started_at, request_count)
+    VALUES ('database-smoke:/api/v1/auth/login', CURRENT_TIMESTAMP, 1)
+    ON CONFLICT (bucket_key) DO UPDATE
+    SET request_count = rate_limit_bucket.request_count + 1;
+    SELECT request_count INTO v_second_count
+    FROM rate_limit_bucket
+    WHERE bucket_key = 'database-smoke:/api/v1/auth/login';
+
+    IF v_first_count <> 1 OR v_second_count <> 2 THEN
+        RAISE EXCEPTION 'Shared rate-limit bucket did not update atomically';
     END IF;
 END
 $$;

@@ -125,6 +125,7 @@ def run_pipeline(
         output / f"{model_name}-{version}.joblib",
         model_name,
         version,
+        validation_strategy="temporal",
     )
     report = {"validation": validation, "processing": processing, "model": model}
     (output / "pipeline-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

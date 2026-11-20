@@ -11,13 +11,14 @@ accounts, process real payments, or provide production-grade fraud decisions.
 | Area | Status | Notes |
 |---|---|---|
 | PostgreSQL database foundation | Implemented | Schema, constraints, indexes, triggers, routines, views, and synthetic seed data are available. |
-| PostgreSQL integration tests | Implemented | Tests run transactionally and roll back their changes. |
+| PostgreSQL integration tests | Implemented | Tests run transactionally and roll back their changes, including the shared rate-limit table. |
 | C++ deterministic fraud engine | Implemented | Library, executable, JSON contract, rules, and unit tests are available. |
 | C++ CI workflow | Implemented | Builds, runs CTest, and validates the JSON contract. |
 | FastAPI backend core | Implemented | API routers, auth, PostgreSQL transaction/fraud services, C++ adapter, investigation workflow, and health endpoints are available. |
 | MongoDB event store | Implemented, supporting | Best-effort writes, event indexes, bounded query API, and health reporting are available; PostgreSQL remains authoritative. |
-| Python ML engine | Implemented, opt-in | Leakage-safe PaySim feature contract, validation/processing/training pipeline, fixture-backed model tests, full-dataset baseline training, Joblib model bundle, JSON inference process, backend adapter, score-combination policy, and local model registration are implemented. Raw data and artifacts remain uncommitted. |
-| Frontend workflow integration | Not implemented | The existing frontend is not yet connected to the completed database and fraud engine. |
+| Python ML engine | Implemented, opt-in | Leakage-safe PaySim feature contract, temporal validation, validation-period threshold tuning, processing/training pipeline, fixture-backed model tests, Joblib model bundle, JSON inference process, backend adapter, score-combination policy, and local model registration are implemented. Raw data and artifacts remain uncommitted. |
+| Frontend workflow integration | Implemented | React client provides authenticated dashboard, account/customer views, transfers, transaction history, fraud-alert review, and investigator actions through the FastAPI API. |
+| Shared rate limiting | Implemented | PostgreSQL-backed atomic buckets are shared across backend worker processes for login and transfer writes. |
 
 ## Database implementation
 
@@ -134,9 +135,10 @@ configured weights.
 6. Pipe a JSON transaction into `fraud_engine` and verify transaction ID and risk level output.
 
 The backend implementation is covered by its Python dependency set, unit tests,
-and database-backed API integration tests. Frontend integration remains
-separate; ML now has its own validation, processing, model-testing, training,
-inference, and CI workflow.
+and database-backed API integration tests. ML has its own validation,
+processing, model-testing, training, inference, and CI workflow. The frontend
+remains a separate client boundary and consumes backend contracts without
+owning ledger, rules, ML, or persistence logic.
 
 ## Verification completed
 
@@ -144,7 +146,7 @@ The following checks have passed locally:
 
 ```text
 PostgreSQL 16.15 accepting connections on 127.0.0.1:5432
-18 expected PostgreSQL tables created
+19 expected PostgreSQL tables created
 Database seed data loaded
 Atomic transfer smoke test passed
 Idempotent transfer retry returned the same transaction ID
@@ -158,7 +160,9 @@ ML engine unit and JSON-contract tests passed (2 tests)
 PaySim dataset validated and leakage-safe baseline trained
 ML-enabled backend integration passed (2 tests)
 PaySim baseline registered and deployed in local PostgreSQL metadata
-ML fixture validation, processing, and model pipeline implemented
+ML temporal validation and threshold-tuning pipeline implemented
+Frontend production build passed
+Shared PostgreSQL rate-limit bucket added
 fraud_engine_tests: all tests passed
 fraud_engine JSON smoke test returned the expected high-risk result
 git diff --check passed (with normal Windows line-ending warnings)
@@ -171,6 +175,6 @@ verification.
 
 ## Remaining scoped work
 
-1. Perform temporal validation and threshold tuning before treating the baseline as an operational model.
-2. Connect the frontend transaction and investigator workflows.
-3. Replace the in-memory rate limiter with a shared production-grade control if this simulation is ever deployed beyond a single process.
+1. Push the changes and confirm the GitHub Actions ML, frontend, backend, and database workflows pass in GitHub.
+2. Regenerate and re-register the ignored full-dataset model artifact using the temporal strategy before any operational experiment.
+3. Add optional frontend enhancements such as pagination, account filtering, and live refresh.

@@ -54,6 +54,8 @@ database routine and trigger function, see
 - `transactions` is used instead of the reserved SQL word `transaction`.
 - `transaction_status_history` and `fraud_rule_result` extend the conceptual ER
   model to preserve state changes and rule-level explainability.
+- `rate_limit_bucket` stores shared API abuse-control windows. It is updated by
+  an atomic upsert so multiple backend workers enforce the same limit.
 - Balances and amounts use `NUMERIC(19,4)` and are changed by the atomic
   `process_transfer` and lifecycle functions, not by direct API-side arithmetic.
 - The seed data is synthetic and contains no real credentials or financial data.

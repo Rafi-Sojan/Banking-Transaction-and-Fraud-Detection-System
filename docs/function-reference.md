@@ -379,6 +379,11 @@ evaluates it with precision, recall, F1, PR-AUC, and ROC-AUC, then persists a
 versioned Joblib bundle. It does not download data or register a model as
 deployed automatically.
 
+The default validation strategy is temporal: earlier PaySim `step` values train
+the model, the next period selects a fraud decision threshold, and the latest
+period supplies final metrics. `validation_strategy="random"` remains available
+for comparison experiments only.
+
 ### `validate_dataset`, `process_dataset`, and `run_pipeline`
 
 `ml.src.pipeline.validate_dataset(input_path)` streams a PaySim CSV, verifies
@@ -420,6 +425,7 @@ The FastAPI routers are thin adapters over the following service functions:
 | `create_user` / `POST /auth/users` | Administrator-only password hashing, role lookup, user insertion, and audit recording. Plaintext passwords never reach PostgreSQL. |
 | `register_model`, `deploy_model` / `/models` | Stores model metadata, validates deployment paths inside the project root, enforces one deployed version per model name, and records model governance actions. Deployment requires an existing artifact. |
 | `create_investigation`, `assign_investigation`, `add_investigation_action`, `close_investigation` / `/fraud/investigations` | Maintains alert review ownership, chronological investigator actions, final outcome, and audit entries. |
+| `check_rate_limit` / request middleware | Atomically increments a PostgreSQL `rate_limit_bucket`, shares login/transfer limits across worker processes, and returns a retry window when the limit is exceeded. Limiter failure returns HTTP 503 for the protected write. |
 | `MongoEventStore.record_event`, `list_events` / `/events` | Best-effort supporting-event persistence and bounded investigator/admin reads. MongoDB failures do not change PostgreSQL ledger outcomes. |
 | `/reports/transactions`, `/reports/fraud`, `/reports/audit` | Read-only investigator/admin projections over authoritative PostgreSQL views and audit records. |
 

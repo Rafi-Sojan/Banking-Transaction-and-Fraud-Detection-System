@@ -22,5 +22,7 @@ def test_process_dataset_excludes_leakage_columns(tmp_path: Path) -> None:
 def test_pipeline_trains_and_reports(tmp_path: Path) -> None:
     report = run_pipeline(FIXTURE, tmp_path / "output", "fixture-model", "ci")
     assert report["validation"]["fraud_rows"] == 4
+    assert report["model"]["validation_strategy"] == "temporal"
+    assert 0 <= report["model"]["decision_threshold"] <= 1
     assert Path(report["model"]["model_path"]).exists()
     assert (tmp_path / "output" / "pipeline-report.json").exists()

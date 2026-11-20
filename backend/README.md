@@ -2,9 +2,9 @@
 
 The backend is the application coordinator for the simulated banking and fraud
 detection system. It owns the HTTP API, authentication, PostgreSQL workflow,
-MongoDB supporting-event writes, and the deterministic C++ rule-engine call.
-Frontend wiring remains separate. Python ML inference is implemented as an
-opt-in engine and is disabled until a trained model is configured.
+MongoDB supporting-event writes, the deterministic C++ rule-engine call, and
+the optional Python ML adapter. The React frontend remains a separate client
+boundary and consumes these API contracts without owning backend decisions.
 
 ## Structure
 
@@ -76,7 +76,10 @@ environment, train a model, and set `ML_ENABLED=true` and `ML_MODEL_PATH`.
     every lifecycle action is auditable.
 
 Request IDs are returned in `X-Request-ID`. Login and transfer writes have a
-configurable in-memory rate limit for this simulation (`RATE_LIMIT_*`).
+configurable PostgreSQL-backed rate limit shared across API worker processes
+(`RATE_LIMIT_ENABLED`, `RATE_LIMIT_PER_MINUTE`, and
+`RATE_LIMIT_WINDOW_SECONDS`). If the shared limiter is unavailable, protected
+writes fail explicitly with HTTP 503 rather than bypassing abuse control.
 
 The backend never treats an unavailable fraud engine as low risk, and MongoDB
 does not become a second source of truth for balances or transaction state.

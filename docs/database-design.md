@@ -59,6 +59,7 @@ without being customers.
 - `investigation` stores alert assignment, review status, outcome, notes, and timestamps.
 - `investigation_action` stores the chronological action history for an investigation.
 - `transaction_status_history` preserves every transaction status transition.
+- `rate_limit_bucket` stores shared API rate-limit windows across backend workers.
 
 ## Key relationships
 

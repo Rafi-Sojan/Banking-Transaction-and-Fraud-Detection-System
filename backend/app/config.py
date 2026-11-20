@@ -51,11 +51,14 @@ class Settings:
         self.hold_threshold = float(os.getenv("FRAUD_HOLD_THRESHOLD", "0.60"))
         self.rate_limit_enabled = _bool_env("RATE_LIMIT_ENABLED", True)
         self.rate_limit_per_minute = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
+        self.rate_limit_window_seconds = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
         self.request_id_header = os.getenv("REQUEST_ID_HEADER", "X-Request-ID")
         if self.ml_rule_weight < 0 or self.ml_model_weight < 0 or abs((self.ml_rule_weight + self.ml_model_weight) - 1.0) > 1e-9:
             raise ValueError("ML_RULE_WEIGHT and ML_MODEL_WEIGHT must be non-negative and sum to 1")
         if not 1 <= self.rate_limit_per_minute <= 10000:
             raise ValueError("RATE_LIMIT_PER_MINUTE must be between 1 and 10000")
+        if not 1 <= self.rate_limit_window_seconds <= 86400:
+            raise ValueError("RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400")
         if self.environment.lower() in {"production", "prod"} and self.jwt_secret == "development-only-change-me":
             raise ValueError("JWT_SECRET must be changed in production")
 

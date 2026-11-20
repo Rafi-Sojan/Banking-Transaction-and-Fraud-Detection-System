@@ -19,8 +19,10 @@ Training uses only non-leaking decision-time PaySim features:
 The target `isFraud`, simulator flag `isFlaggedFraud`, customer identifiers,
 and all four PaySim balance columns are excluded. The dataset card warns that
 the balances can leak the fraud outcome because fraudulent transactions are
-cancelled. The trainer requires both fraud classes and reports precision,
-recall, F1, PR-AUC, and ROC-AUC.
+cancelled. The trainer requires both fraud classes, uses ordered train,
+validation, and test periods by `step`, tunes a decision threshold on the
+validation period, and reports precision, recall, F1, PR-AUC, and ROC-AUC on
+the later test period.
 
 ## Train a model
 
