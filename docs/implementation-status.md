@@ -153,13 +153,13 @@ Idempotent transfer retry returned the same transaction ID
 Invalid negative amount rejected
 Database setup rerun completed successfully
 Database integration tests passed
-Backend tests passed (6 tests, including database-backed API integration)
+Backend tests passed (8 tests, including database-backed API integration)
 FastAPI import and health checks passed
 Backend-to-C++ fraud-engine smoke test passed
-ML engine unit and JSON-contract tests passed (2 tests)
-PaySim dataset validated and leakage-safe baseline trained
-ML-enabled backend integration passed (2 tests)
-PaySim baseline registered and deployed in local PostgreSQL metadata
+ML engine unit, JSON-contract, and pipeline tests passed (5 tests)
+PaySim full dataset validated, processed, and temporally trained
+ML-enabled backend integration passed (8 tests)
+PaySim baseline version 1.1.0 registered and deployed in local PostgreSQL metadata
 ML temporal validation and threshold-tuning pipeline implemented
 Frontend production build passed
 Shared PostgreSQL rate-limit bucket added
@@ -176,5 +176,4 @@ verification.
 ## Remaining scoped work
 
 1. Push the changes and confirm the GitHub Actions ML, frontend, backend, and database workflows pass in GitHub.
-2. Regenerate and re-register the ignored full-dataset model artifact using the temporal strategy before any operational experiment.
-3. Add optional frontend enhancements such as pagination, account filtering, and live refresh.
+2. Add optional frontend enhancements such as pagination, account filtering, and live refresh.

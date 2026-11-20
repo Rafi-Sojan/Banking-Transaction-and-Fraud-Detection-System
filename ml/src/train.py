@@ -190,7 +190,7 @@ def main() -> int:
     parser.add_argument("--input", required=True, help="Path to PaySim CSV")
     parser.add_argument("--output", required=True, help="Path for Joblib model bundle")
     parser.add_argument("--model-name", default="paysim-baseline")
-    parser.add_argument("--version", default="1.0.0")
+    parser.add_argument("--version", default="1.1.0")
     parser.add_argument("--validation-strategy", choices=("temporal", "random"), default="temporal")
     parser.add_argument("--metadata-output", help="Optional JSON metrics output path")
     args = parser.parse_args()

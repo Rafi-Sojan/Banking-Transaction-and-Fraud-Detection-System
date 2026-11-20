@@ -41,7 +41,10 @@ class MLInferenceClient:
             **features.model_dump(),
         }
         environment = os.environ.copy()
-        environment.setdefault("PYTHONPATH", str(settings.project_root))
+        existing_pythonpath = environment.get("PYTHONPATH")
+        environment["PYTHONPATH"] = os.pathsep.join(
+            path for path in (str(settings.project_root), existing_pythonpath) if path
+        )
         try:
             completed = subprocess.run(
                 [

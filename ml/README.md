@@ -36,7 +36,7 @@ python -m ml.src.train `
   --output ml\models\paysim-baseline.joblib `
   --metadata-output ml\models\paysim-baseline.json `
   --model-name paysim-baseline `
-  --version 1.0.0
+  --version 1.1.0
 ```
 
 Model files are ignored by Git. The generated bundle contains the preprocessing
@@ -68,7 +68,7 @@ It returns:
 {
   "fraud_probability": 0.812345,
   "model_name": "paysim-baseline",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
 ```
 

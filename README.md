@@ -123,7 +123,7 @@ python -m ml.src.train `
   --output ml\models\paysim-baseline.joblib `
   --metadata-output ml\models\paysim-baseline.json `
   --model-name paysim-baseline `
-  --version 1.0.0
+  --version 1.1.0
 ```
 
 ML is activated in the backend with `ML_ENABLED=true` and a configured model

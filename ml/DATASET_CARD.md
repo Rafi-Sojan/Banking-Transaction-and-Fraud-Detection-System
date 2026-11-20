@@ -35,22 +35,22 @@ keeps training aligned with the backend's decision-time contract.
 ## Model artifact
 
 The locally trained baseline is `ml/models/paysim-baseline.joblib`, version
-`1.0.0`. It is ignored by Git and registered as deployed only in the local
+`1.1.0`. It is ignored by Git and registered as deployed only in the local
 PostgreSQL instance. The repository does not contain the raw CSV or binary
 model artifact.
 
-The original local artifact was trained with the earlier random holdout at
-threshold `0.5`:
+Temporal validation uses 6,010,937 training rows, 228,103 threshold-validation
+rows, and 123,580 later test rows. The validation-selected decision threshold is
+`0.49`:
 
 | Metric | Value |
 |---|---:|
-| Precision | 0.005236 |
-| Recall | 0.882532 |
-| F1 | 0.010411 |
-| PR-AUC | 0.020684 |
-| ROC-AUC | 0.919355 |
+| Precision | 0.077117 |
+| Recall | 0.776904 |
+| F1 | 0.140307 |
+| PR-AUC | 0.166048 |
+| ROC-AUC | 0.899735 |
 
 These metrics are a reproducible academic baseline, not evidence of production
-fraud-detection performance. The training pipeline now performs temporal
-validation and tunes the decision threshold; regenerate the ignored local
-artifact before using it for any operational experiment.
+fraud-detection performance. The artifact remains opt-in and requires further
+governance before any operational experiment.
