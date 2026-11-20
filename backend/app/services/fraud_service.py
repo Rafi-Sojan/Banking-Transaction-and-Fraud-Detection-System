@@ -10,7 +10,7 @@ from typing import Any
 from psycopg.types.json import Json
 
 from app.config import get_settings
-from app.schemas.transaction import FraudEvaluationRead, TransactionFeatures
+from app.schemas.transaction import FraudEvaluationRead, MLPredictionRead, TransactionFeatures
 
 
 class FraudEngineError(RuntimeError):
@@ -61,17 +61,34 @@ class FraudEngineClient:
             raise FraudEngineError("C++ fraud engine returned invalid JSON") from exc
 
 
-def persist_fraud_alert(connection: Any, transaction_id: int, evaluation: FraudEvaluationRead) -> int:
+def persist_fraud_alert(
+    connection: Any,
+    transaction_id: int,
+    evaluation: FraudEvaluationRead,
+    combined_risk_score: float | None = None,
+    risk_level: str | None = None,
+    ml_prediction: MLPredictionRead | None = None,
+) -> int:
+    combined_risk_score = evaluation.rule_score if combined_risk_score is None else combined_risk_score
+    risk_level = evaluation.risk_level if risk_level is None else risk_level
+    reasons = evaluation.reasons[:]
+    if ml_prediction is not None:
+        reasons.append(f"ML model {ml_prediction.model_name} produced probability {ml_prediction.fraud_probability:.6f}")
     alert_row = connection.execute(
         """
-        SELECT create_fraud_alert(%s, %s, NULL, %s, %s, NULL, %s) AS alert_id
+        SELECT create_fraud_alert(
+            %s::BIGINT, %s::NUMERIC, %s::NUMERIC, %s::NUMERIC,
+            %s::VARCHAR, %s::BIGINT, %s::JSONB
+        ) AS alert_id
         """,
         (
             transaction_id,
             evaluation.rule_score,
-            evaluation.rule_score,
-            evaluation.risk_level,
-            Json(evaluation.reasons),
+            ml_prediction.fraud_probability if ml_prediction else None,
+            combined_risk_score,
+            risk_level,
+            ml_prediction.model_id if ml_prediction else None,
+            Json(reasons),
         ),
     ).fetchone()
     alert_id = int(alert_row["alert_id"])

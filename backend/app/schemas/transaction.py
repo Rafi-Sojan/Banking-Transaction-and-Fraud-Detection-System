@@ -74,7 +74,26 @@ class FraudEvaluationRead(BaseModel):
     reasons: list[str]
 
 
+class MLPredictionRead(BaseModel):
+    fraud_probability: float = Field(ge=0, le=1)
+    model_name: str
+    version: str
+    model_id: int | None = None
+
+
 class TransferResponse(BaseModel):
     transaction: TransactionRead
     evaluation: FraudEvaluationRead
+    ml_prediction: MLPredictionRead | None = None
+    combined_risk_score: float = Field(ge=0, le=1)
+    risk_level: str
     alert_id: int | None = None
+
+
+class HeldTransactionDecision(BaseModel):
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class TransactionLifecycleResponse(BaseModel):
+    transaction: TransactionRead
+    action: str

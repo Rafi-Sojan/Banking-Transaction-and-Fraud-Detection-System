@@ -1,6 +1,6 @@
 # Database and C++ Function Reference
 
-Last updated: 2026-10-21
+Last updated: 2026-11-21
 
 This document describes the behavior implemented by the database routines,
 trigger functions, and C++ fraud-engine functions. It documents current
@@ -79,6 +79,35 @@ Behavior:
 
 This function records a risk signal. It does not confirm fraud and does not
 automatically create an investigation.
+
+### Held-transfer lifecycle functions
+
+Defined in `database/procedures/transaction_lifecycle.sql`.
+
+```sql
+approve_held_transfer(p_transaction_id BIGINT, p_user_id BIGINT DEFAULT NULL) RETURNS BIGINT
+decline_held_transfer(p_transaction_id BIGINT, p_user_id BIGINT DEFAULT NULL, p_reason TEXT DEFAULT NULL) RETURNS BIGINT
+reverse_completed_transfer(
+    p_transaction_id BIGINT,
+    p_user_id BIGINT DEFAULT NULL,
+    p_idempotency_key VARCHAR(160) DEFAULT NULL,
+    p_reason TEXT DEFAULT NULL
+) RETURNS BIGINT
+```
+
+`approve_held_transfer` locks the held transaction and both accounts in stable
+order, validates active status, matching currency, and available funds, then
+completes the transfer and returns the original ID. It rejects non-held
+transactions and never silently bypasses account checks.
+
+`decline_held_transfer` changes only an existing `held` transaction to
+`declined`, preserving balances and optionally recording the reason in the
+transaction description.
+
+`reverse_completed_transfer` accepts only a completed transfer, creates a
+separate completed `refund` in the opposite direction, restores both balances,
+marks the original `reversed`, and returns the reversal ID. A supplied
+idempotency key returns the existing reversal on retry.
 
 ### `close_investigation`
 
@@ -169,6 +198,10 @@ create_fraud_alert
 
 close_investigation
   -> investigation closure + investigation action + alert resolution
+
+approve_held_transfer / decline_held_transfer / reverse_completed_transfer
+  -> controlled transaction state change + account locking + status history
+```
 
 ## 3. C++ engine functions
 
@@ -324,4 +357,60 @@ FastAPI validates request
 The C++ engine is intentionally limited to deterministic rule evaluation. The
 backend remains responsible for authentication, authorization, ML integration,
 final simulated decisions, persistence, and audit policy.
-```
+
+## 5. Python ML engine
+
+The ML implementation is under `ml/src/` and is documented in
+[ml/README.md](../ml/README.md).
+
+### `training_features` and `training_target`
+
+These functions validate the PaySim training frame and select only approved
+decision-time features. They reject missing required columns, missing fraud
+classes, and non-binary targets. `isFraud` is the target and `isFlaggedFraud`
+is excluded from model inputs.
+
+### `train_model`
+
+`ml.src.train.train_model(input_path, output_path, model_name, version)` builds
+a preprocessing pipeline and class-balanced logistic-regression baseline,
+evaluates it with precision, recall, F1, PR-AUC, and ROC-AUC, then persists a
+versioned Joblib bundle. It does not download data or register a model as
+deployed automatically.
+
+### `MLInferenceEngine.predict`
+
+Loads a validated Joblib bundle and returns one fraud probability together with
+the model name and version. It rejects missing model files, incompatible
+feature schemas, malformed input, and pipeline failures.
+
+### `MLInferenceClient.predict`
+
+The backend adapter invokes `python -m ml.src.main` with a JSON payload and
+without shell interpolation. Missing or failing models raise an error; the
+backend never converts an ML failure into a low-risk result.
+
+### `combine_risk_scores`
+
+Combines the C++ rule score and ML probability using `ML_RULE_WEIGHT` and
+`ML_MODEL_WEIGHT`, which must be non-negative and sum to `1.0`. It returns the
+normalized combined score and the `low`, `medium`, `high`, or `critical` risk
+label used by alert and holding policy.
+
+## 6. Backend service and API boundaries
+
+The FastAPI routers are thin adapters over the following service functions:
+
+| Backend function/API | Responsibility |
+|---|---|
+| `create_transfer` / `POST /transactions/transfers` | Validates the request, invokes C++ and optional ML evaluation, applies the configured hold/alert policy, persists PostgreSQL state, writes audit data, and attempts a supporting event. |
+| `approve_held_transfer`, `decline_held_transfer`, `reverse_completed_transfer` / transaction lifecycle routes | Calls the matching PostgreSQL routine, records the actor and reason in `audit_log`, and returns the resulting transaction. |
+| `create_user` / `POST /auth/users` | Administrator-only password hashing, role lookup, user insertion, and audit recording. Plaintext passwords never reach PostgreSQL. |
+| `register_model`, `deploy_model` / `/models` | Stores model metadata, validates deployment paths inside the project root, enforces one deployed version per model name, and records model governance actions. Deployment requires an existing artifact. |
+| `create_investigation`, `assign_investigation`, `add_investigation_action`, `close_investigation` / `/fraud/investigations` | Maintains alert review ownership, chronological investigator actions, final outcome, and audit entries. |
+| `MongoEventStore.record_event`, `list_events` / `/events` | Best-effort supporting-event persistence and bounded investigator/admin reads. MongoDB failures do not change PostgreSQL ledger outcomes. |
+| `/reports/transactions`, `/reports/fraud`, `/reports/audit` | Read-only investigator/admin projections over authoritative PostgreSQL views and audit records. |
+
+Authentication and role checks occur in FastAPI dependencies. PostgreSQL
+remains authoritative for balances, transaction status, alert state, and
+model metadata; C++ and ML components never write financial records directly.

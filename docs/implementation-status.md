@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last updated: 2026-10-21
+Last updated: 2026-11-21
 
 This document records the implementation completed in the repository so far.
 The system remains an academic simulation. It does not connect to real bank
@@ -15,8 +15,8 @@ accounts, process real payments, or provide production-grade fraud decisions.
 | C++ deterministic fraud engine | Implemented | Library, executable, JSON contract, rules, and unit tests are available. |
 | C++ CI workflow | Implemented | Builds, runs CTest, and validates the JSON contract. |
 | FastAPI backend core | Implemented | API routers, auth, PostgreSQL transaction/fraud services, C++ adapter, investigation workflow, and health endpoints are available. |
-| MongoDB event store | Partially implemented | Supporting event writes are attempted after PostgreSQL commits; event queries and richer event schemas remain pending. |
-| Python ML pipeline | Not implemented | PaySim preprocessing, training, evaluation, and inference still need to be built. |
+| MongoDB event store | Implemented, supporting | Best-effort writes, event indexes, bounded query API, and health reporting are available; PostgreSQL remains authoritative. |
+| Python ML engine | Implemented, opt-in | PaySim feature contract, reproducible training, Joblib model bundle, JSON inference process, backend adapter, and score-combination policy are implemented. A trained model is not committed. |
 | Frontend workflow integration | Not implemented | The existing frontend is not yet connected to the completed database and fraud engine. |
 
 ## Database implementation
@@ -30,6 +30,7 @@ records. The implementation is organized as follows:
 - [database/triggers/transaction_triggers.sql](../database/triggers/transaction_triggers.sql) manages timestamps, status history, and protection of final transaction fields.
 - [database/triggers/fraud_triggers.sql](../database/triggers/fraud_triggers.sql) prevents reopening confirmed fraud alerts through invalid status transitions.
 - [database/procedures/transaction_procedures.sql](../database/procedures/transaction_procedures.sql) provides the atomic `process_transfer` function.
+- [database/procedures/transaction_lifecycle.sql](../database/procedures/transaction_lifecycle.sql) provides held approval/decline and completed-transfer reversal functions.
 - [database/procedures/fraud_procedures.sql](../database/procedures/fraud_procedures.sql) provides fraud-alert creation and investigation-closing helpers.
 - [database/views/transaction_reports.sql](../database/views/transaction_reports.sql) provides transaction reporting data.
 - [database/views/fraud_reports.sql](../database/views/fraud_reports.sql) provides fraud and investigation reporting data.
@@ -86,6 +87,7 @@ The tests cover:
 - Transaction status-history recording.
 - Rejection of negative transaction amounts.
 - High-risk fraud-alert creation and transaction holding.
+- Held approval, decline, reversal, and balance-restoration lifecycle behavior.
 
 The tests run inside a transaction and finish with `ROLLBACK`, so test records
 are not retained.
@@ -116,8 +118,9 @@ Implemented rules:
 
 The engine returns a normalized `rule_score`, a risk level, every rule result,
 and human-readable reasons. Risk levels are `low`, `medium`, `high`, and
-`critical`. The C++ score is not a final authorization decision and must later
-be combined with the Python ML probability by the backend decision service.
+`critical`. The C++ score is not a final authorization decision. When ML is
+enabled, the backend combines it with the Python ML probability using
+configured weights.
 
 ## CI workflow changes
 
@@ -130,7 +133,9 @@ be combined with the Python ML probability by the backend decision service.
 5. Run CTest with failure output.
 6. Pipe a JSON transaction into `fraud_engine` and verify transaction ID and risk level output.
 
-The backend implementation is now covered by its Python dependency set and unit tests. Frontend and ML workflows remain intentionally separate.
+The backend implementation is covered by its Python dependency set, unit tests,
+and database-backed API integration tests. Frontend integration remains
+separate; ML now has its own training, inference, and CI workflow.
 
 ## Verification completed
 
@@ -145,9 +150,10 @@ Idempotent transfer retry returned the same transaction ID
 Invalid negative amount rejected
 Database setup rerun completed successfully
 Database integration tests passed
-Backend unit tests passed (3 tests)
+Backend tests passed (6 tests, including database-backed API integration)
 FastAPI import and health checks passed
 Backend-to-C++ fraud-engine smoke test passed
+ML engine unit and JSON-contract tests passed (2 tests)
 fraud_engine_tests: all tests passed
 fraud_engine JSON smoke test returned the expected high-risk result
 git diff --check passed (with normal Windows line-ending warnings)
@@ -158,10 +164,8 @@ were compiled directly with the available GNU C++ compiler. The CMake/CTest
 path is configured in CI and should be the authoritative cross-platform build
 verification.
 
-## Recommended next implementation steps
+## Remaining scoped work
 
-1. Add broader backend integration tests covering transaction and investigation lifecycles.
-2. Add richer MongoDB event schemas and read APIs if supporting-event analysis requires them.
-3. Implement the Python ML preprocessing, training, evaluation, model persistence, and inference interface.
-4. Add the documented backend policy for combining C++ and ML scores after ML integration is approved.
-5. Connect the frontend transaction and investigator workflows.
+1. Train and validate a model using an authorized synthetic PaySim dataset, then register an artifact as deployed in PostgreSQL.
+2. Connect the frontend transaction and investigator workflows.
+3. Replace the in-memory rate limiter with a shared production-grade control if this simulation is ever deployed beyond a single process.

@@ -159,5 +159,59 @@ BEGIN
 END
 $$;
 
+DO $$
+DECLARE
+    v_held_id BIGINT;
+    v_declined_id BIGINT;
+    v_reversal_id BIGINT;
+    v_status VARCHAR(20);
+    v_source_before NUMERIC(19, 4);
+    v_destination_before NUMERIC(19, 4);
+    v_source_after NUMERIC(19, 4);
+    v_destination_after NUMERIC(19, 4);
+BEGIN
+    SELECT balance INTO v_source_before FROM account WHERE account_number = '100000000001';
+    SELECT balance INTO v_destination_before FROM account WHERE account_number = '100000000002';
+
+    INSERT INTO transactions (source_account_id, destination_account_id, amount, currency_code, transaction_type, status)
+    VALUES (
+        (SELECT account_id FROM account WHERE account_number = '100000000001'),
+        (SELECT account_id FROM account WHERE account_number = '100000000002'),
+        15.00, 'USD', 'transfer', 'held'
+    ) RETURNING transaction_id INTO v_held_id;
+
+    PERFORM approve_held_transfer(v_held_id, NULL::BIGINT);
+    SELECT status INTO STRICT v_status FROM transactions WHERE transaction_id = v_held_id;
+    IF v_status <> 'completed' THEN
+        RAISE EXCEPTION 'Held approval did not complete transaction';
+    END IF;
+
+    v_reversal_id := reverse_completed_transfer(v_held_id, NULL::BIGINT, 'database-integration-reversal', 'smoke reversal');
+    IF NOT EXISTS (SELECT 1 FROM transactions WHERE transaction_id = v_reversal_id AND status = 'completed') THEN
+        RAISE EXCEPTION 'Reversal transaction was not completed';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM transactions WHERE transaction_id = v_held_id AND status = 'reversed') THEN
+        RAISE EXCEPTION 'Original transaction was not marked reversed';
+    END IF;
+
+    INSERT INTO transactions (source_account_id, destination_account_id, amount, currency_code, transaction_type, status)
+    VALUES (
+        (SELECT account_id FROM account WHERE account_number = '100000000001'),
+        (SELECT account_id FROM account WHERE account_number = '100000000002'),
+        15.00, 'USD', 'transfer', 'held'
+    ) RETURNING transaction_id INTO v_declined_id;
+    PERFORM decline_held_transfer(v_declined_id, NULL::BIGINT, 'smoke decline');
+    IF NOT EXISTS (SELECT 1 FROM transactions WHERE transaction_id = v_declined_id AND status = 'declined') THEN
+        RAISE EXCEPTION 'Held decline did not update transaction';
+    END IF;
+
+    SELECT balance INTO v_source_after FROM account WHERE account_number = '100000000001';
+    SELECT balance INTO v_destination_after FROM account WHERE account_number = '100000000002';
+    IF v_source_after <> v_source_before OR v_destination_after <> v_destination_before THEN
+        RAISE EXCEPTION 'Approve/reversal did not restore account balances';
+    END IF;
+END
+$$;
+
 ROLLBACK;
 

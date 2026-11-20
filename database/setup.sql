@@ -8,6 +8,7 @@
 \ir triggers/transaction_triggers.sql
 \ir triggers/fraud_triggers.sql
 \ir procedures/transaction_procedures.sql
+\ir procedures/transaction_lifecycle.sql
 \ir procedures/fraud_procedures.sql
 \ir views/transaction_reports.sql
 \ir views/fraud_reports.sql

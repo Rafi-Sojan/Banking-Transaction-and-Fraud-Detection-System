@@ -5,15 +5,39 @@ on:
   push:
     paths:
       - "backend/**"
+      - "cpp/**"
+      - "database/**"
       - ".github/workflows/backend.yml"
   pull_request:
     paths:
       - "backend/**"
+      - "cpp/**"
+      - "database/**"
       - ".github/workflows/backend.yml"
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/banking_fraud
+      FRAUD_ENGINE_PATH: ${{ github.workspace }}/cpp/build/fraud_engine
+      PYTHONPATH: backend
+      ML_ENABLED: "false"
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: banking_fraud
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d banking_fraud"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - name: Checkout code
@@ -24,13 +48,22 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install native dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ postgresql-client
+
+      - name: Build C++ fraud engine
+        run: |
+          cmake -S cpp -B cpp/build -DBUILD_TESTING=ON
+          cmake --build cpp/build --config Release --parallel
+          ctest --test-dir cpp/build --output-on-failure
+
+      - name: Initialize PostgreSQL
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/setup.sql
+
       - name: Install dependencies
         run: |
-          cd backend
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          python -m pip install -r backend/requirements.txt
 
       - name: Run tests
-        run: |
-          cd backend
-          pytest
+        run: pytest backend/tests -q

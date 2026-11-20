@@ -26,8 +26,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install numpy pandas scikit-learn
+          python -m pip install --upgrade pip
+          python -m pip install -r ml/requirements.txt
 
       - name: Check ML code
         run: |
           python -m compileall ml/src
+          PYTHONPATH=. pytest ml/tests -q

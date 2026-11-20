@@ -32,6 +32,12 @@ class Settings:
         configured_engine = os.getenv("FRAUD_ENGINE_PATH")
         self.fraud_engine_path = Path(configured_engine) if configured_engine else self._default_engine_path()
         self.fraud_engine_timeout_seconds = float(os.getenv("FRAUD_ENGINE_TIMEOUT_SECONDS", "2"))
+        self.ml_enabled = _bool_env("ML_ENABLED", False)
+        configured_ml_model = os.getenv("ML_MODEL_PATH")
+        self.ml_model_path = Path(configured_ml_model) if configured_ml_model else self.project_root / "ml" / "models" / "paysim-baseline.joblib"
+        self.ml_engine_timeout_seconds = float(os.getenv("ML_ENGINE_TIMEOUT_SECONDS", "3"))
+        self.ml_rule_weight = float(os.getenv("ML_RULE_WEIGHT", "0.70"))
+        self.ml_model_weight = float(os.getenv("ML_MODEL_WEIGHT", "0.30"))
         self.auth_required = _bool_env("AUTH_REQUIRED", True)
         self.jwt_secret = os.getenv("JWT_SECRET", "development-only-change-me")
         self.jwt_algorithm = os.getenv("JWT_ALGORITHM", "HS256")
@@ -43,6 +49,15 @@ class Settings:
         ]
         self.alert_threshold = float(os.getenv("FRAUD_ALERT_THRESHOLD", "0.30"))
         self.hold_threshold = float(os.getenv("FRAUD_HOLD_THRESHOLD", "0.60"))
+        self.rate_limit_enabled = _bool_env("RATE_LIMIT_ENABLED", True)
+        self.rate_limit_per_minute = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
+        self.request_id_header = os.getenv("REQUEST_ID_HEADER", "X-Request-ID")
+        if self.ml_rule_weight < 0 or self.ml_model_weight < 0 or abs((self.ml_rule_weight + self.ml_model_weight) - 1.0) > 1e-9:
+            raise ValueError("ML_RULE_WEIGHT and ML_MODEL_WEIGHT must be non-negative and sum to 1")
+        if not 1 <= self.rate_limit_per_minute <= 10000:
+            raise ValueError("RATE_LIMIT_PER_MINUTE must be between 1 and 10000")
+        if self.environment.lower() in {"production", "prod"} and self.jwt_secret == "development-only-change-me":
+            raise ValueError("JWT_SECRET must be changed in production")
 
     def _default_engine_path(self) -> Path:
         build_dir = self.project_root / "cpp" / "build"

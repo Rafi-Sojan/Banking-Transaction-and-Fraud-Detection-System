@@ -3,22 +3,24 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import accounts, auth, customers, fraud, report, transactions
+from app.api import accounts, auth, customers, events, fraud, ml, report, transactions
 from app.config import get_settings
 from app.databases.mongodb import get_event_store
 from app.databases.postgres import get_connection
+from app.middleware import RequestObservabilityMiddleware
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0")
+app.add_middleware(RequestObservabilityMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID"],
 )
 
-for router_module in (auth, accounts, customers, transactions, fraud, report):
+for router_module in (auth, accounts, customers, transactions, fraud, report, ml, events):
     app.include_router(router_module.router, prefix="/api/v1")
 
 

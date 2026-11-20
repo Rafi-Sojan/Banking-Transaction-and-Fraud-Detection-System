@@ -9,8 +9,9 @@ from psycopg.types.json import Json
 
 from app.config import get_settings
 from app.databases.mongodb import get_event_store
-from app.schemas.transaction import TransferRequest, TransferResponse, TransactionRead
+from app.schemas.transaction import MLPredictionRead, TransferRequest, TransferResponse, TransactionRead
 from app.services.fraud_service import FraudEngineClient, persist_fraud_alert
+from app.services.ml_service import MLInferenceClient, MLEngineError, MLEngineUnavailable, combine_risk_scores, deployed_model_id
 from app.utils.validators import validate_currency, validate_positive_amount
 
 
@@ -39,9 +40,23 @@ def create_transfer(
     validate_currency(request.currency_code)
     validate_positive_amount(request.amount)
     transaction_reference = request.idempotency_key or f"backend-{uuid4()}"
+    settings = get_settings()
+
     evaluator = engine or FraudEngineClient()
     evaluation = evaluator.evaluate(transaction_reference, request.amount, "transfer", request.features)
-    settings = get_settings()
+    ml_prediction: MLPredictionRead | None = None
+    if settings.ml_enabled:
+        ml_prediction = MLInferenceClient().predict(
+            transaction_reference,
+            request.amount,
+            "transfer",
+            request.features,
+        )
+        ml_prediction.model_id = deployed_model_id(connection, ml_prediction)
+    combined_risk_score, risk_level = combine_risk_scores(
+        evaluation.rule_score,
+        ml_prediction.fraud_probability if ml_prediction else None,
+    )
 
     existing = None
     if request.idempotency_key:
@@ -54,13 +69,16 @@ def create_transfer(
         response = TransferResponse(
             transaction=TransactionRead.model_validate(transaction),
             evaluation=evaluation,
+            ml_prediction=ml_prediction,
+            combined_risk_score=combined_risk_score,
+            risk_level=risk_level,
             alert_id=_latest_alert_id(connection, transaction["transaction_id"]),
         )
         connection.commit()
         return response
 
-    hold = evaluation.rule_score >= settings.hold_threshold
-    should_alert = evaluation.rule_score >= settings.alert_threshold
+    hold = combined_risk_score >= settings.hold_threshold
+    should_alert = combined_risk_score >= settings.alert_threshold
     if hold:
         account_rows = connection.execute(
             """
@@ -101,7 +119,10 @@ def create_transfer(
     else:
         transaction_row = connection.execute(
             """
-            SELECT process_transfer(%s, %s, %s, %s, %s, %s, %s, %s) AS transaction_id
+            SELECT process_transfer(
+                %s::BIGINT, %s::BIGINT, %s::NUMERIC, %s::CHAR(3), %s::VARCHAR,
+                %s::BIGINT, %s::TEXT, %s::JSONB
+            ) AS transaction_id
             """,
             (
                 request.source_account_id,
@@ -117,7 +138,18 @@ def create_transfer(
         transaction_id = int(transaction_row["transaction_id"])
         transaction_row = _load_transaction(connection, transaction_id)
 
-    alert_id = persist_fraud_alert(connection, transaction_id, evaluation) if should_alert else None
+    alert_id = (
+        persist_fraud_alert(
+            connection,
+            transaction_id,
+            evaluation,
+            combined_risk_score,
+            risk_level,
+            ml_prediction,
+        )
+        if should_alert
+        else None
+    )
     connection.execute(
         """
         INSERT INTO audit_log (user_id, action, entity_type, entity_id, details)
@@ -129,8 +161,10 @@ def create_transfer(
             transaction_id,
             Json({
                 "status": "held" if hold else "completed",
-                "risk_level": evaluation.risk_level,
+                "risk_level": risk_level,
                 "rule_score": evaluation.rule_score,
+                "ml_probability": ml_prediction.fraud_probability if ml_prediction else None,
+                "combined_risk_score": combined_risk_score,
                 "alert_id": alert_id,
             }),
         ),
@@ -139,6 +173,9 @@ def create_transfer(
     response = TransferResponse(
         transaction=TransactionRead.model_validate(transaction),
         evaluation=evaluation,
+        ml_prediction=ml_prediction,
+        combined_risk_score=combined_risk_score,
+        risk_level=risk_level,
         alert_id=alert_id,
     )
     connection.commit()
@@ -147,8 +184,10 @@ def create_transfer(
         {
             "transaction_id": transaction_id,
             "status": transaction["status"],
-            "risk_level": evaluation.risk_level,
+            "risk_level": risk_level,
             "rule_score": evaluation.rule_score,
+            "ml_probability": ml_prediction.fraud_probability if ml_prediction else None,
+            "combined_risk_score": combined_risk_score,
         },
     )
     return response

@@ -16,6 +16,7 @@ schema/indexes.sql
 triggers/transaction_triggers.sql
 triggers/fraud_triggers.sql
 procedures/transaction_procedures.sql
+procedures/transaction_lifecycle.sql
 procedures/fraud_procedures.sql
 views/transaction_reports.sql
 views/fraud_reports.sql
@@ -40,8 +41,9 @@ Run the PostgreSQL integration smoke tests from PowerShell:
 ```
 
 The test suite validates schema presence, seed data, atomic transfers,
-idempotency, transaction status history, constraint enforcement, and high-risk
-fraud-alert handling. Tests run inside a transaction and roll back at the end.
+idempotency, transaction status history, constraint enforcement, high-risk
+fraud-alert handling, and held approval/decline/reversal behavior. Tests run
+inside a transaction and roll back at the end.
 
 For exact parameters, validation, side effects, and error conditions of every
 database routine and trigger function, see
@@ -53,6 +55,6 @@ database routine and trigger function, see
 - `transaction_status_history` and `fraud_rule_result` extend the conceptual ER
   model to preserve state changes and rule-level explainability.
 - Balances and amounts use `NUMERIC(19,4)` and are changed by the atomic
-  `process_transfer` function, not by direct API-side arithmetic.
+  `process_transfer` and lifecycle functions, not by direct API-side arithmetic.
 - The seed data is synthetic and contains no real credentials or financial data.
 - The seeded ML model is explicitly offline and has no fabricated metrics.

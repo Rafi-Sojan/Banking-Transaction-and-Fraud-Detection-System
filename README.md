@@ -15,13 +15,13 @@ data and rules services:
 - PostgreSQL as the authoritative store for accounts, balances, transactions,
   alerts, investigations, and audit records.
 - MongoDB as optional supporting storage for behavioral and device events.
-- C++17 deterministic fraud rules invoked through a controlled JSON subprocess.
+- C++17 deterministic fraud rules and an opt-in Python PaySim ML engine,
+  both invoked through controlled JSON subprocesses.
 - Automated unit, integration, C++ build, and database validation workflows.
 
-Frontend API wiring and Python ML integration are intentionally separate work
-streams. The backend does not treat an unavailable ML component as a low-risk
-decision, and the current transaction path uses the deterministic C++ rules
-engine only.
+Frontend API wiring remains separate. The ML engine is implemented but remains
+disabled until a trained model is supplied. When enabled, an unavailable ML
+component is an error, never a low-risk result.
 
 ## Architecture
 
@@ -49,7 +49,7 @@ backend/                 FastAPI application and backend tests
 cpp/                     C++17 fraud-rule engine and CTest target
 database/                PostgreSQL schema, routines, views, and seed data
 frontend/                React/Vite application scaffolding
-ml/                      Reserved PaySim/ML pipeline
+ml/                      PaySim preprocessing, training, and inference engine
 tests/integration/       PostgreSQL integration smoke tests
 docs/                    Architecture, design, and implementation records
 .github/workflows/       Backend, database, C++, frontend, and ML workflows
@@ -68,9 +68,12 @@ The backend provides:
 - C++ rule-engine evaluation before transaction processing.
 - Medium-risk alert persistence.
 - High/critical-risk transaction holding without balance movement.
-- Fraud-alert listing and investigation open/close workflows.
+- Fraud-alert listing, investigation assignment/actions, and open/close workflows.
+- Held-transfer approval/decline and completed-transfer reversal workflows.
+- Administrator user provisioning and ML model registry/deployment metadata.
+- Supporting MongoDB event query and PostgreSQL audit-report endpoints.
 - Audit-log entries for transaction and investigation actions.
-- PostgreSQL readiness and C++ engine health checks.
+- PostgreSQL readiness, C++ engine, and MongoDB health checks.
 
 See [backend/README.md](backend/README.md) for setup instructions and the
 endpoint catalog.
@@ -102,6 +105,31 @@ The executable reads one JSON object from standard input and writes one JSON
 result to standard output. See [cpp/README.md](cpp/README.md) for the contract
 and rule behavior.
 
+### Python ML engine
+
+Install the ML dependencies and run the ML tests with:
+
+```powershell
+python -m pip install -r ml\requirements.txt
+$env:PYTHONPATH = "."
+python -m pytest ml\tests -q
+```
+
+Train the versioned PaySim baseline only with an authorized synthetic dataset:
+
+```powershell
+python -m ml.src.train `
+  --input ml\data\raw\paysim.csv `
+  --output ml\models\paysim-baseline.joblib `
+  --metadata-output ml\models\paysim-baseline.json `
+  --model-name paysim-baseline `
+  --version 1.0.0
+```
+
+ML is activated in the backend with `ML_ENABLED=true` and a configured model
+path. See [ml/README.md](ml/README.md) for the feature policy, JSON contract,
+metrics, and deployment metadata requirements.
+
 ## Local backend setup
 
 Create a virtual environment, install the backend dependencies, and start the
@@ -123,8 +151,8 @@ file; use [.env.example](.env.example) as the placeholder template.
 
 The default configuration requires authentication. The database seed contains
 synthetic customers and accounts but does not create demo application-user
-credentials. Add an `app_user` record with a generated password hash before
-using the login endpoint.
+credentials. Bootstrap an administrator through a controlled database
+operation, then use the administrator-only provisioning endpoint.
 
 ## Test commands
 
@@ -159,15 +187,15 @@ tests/integration/      PostgreSQL smoke tests
 
 GitHub Actions workflows are available for:
 
-- Backend dependency installation and Python tests.
+- Backend dependency installation, PostgreSQL provisioning, C++ build, and API integration tests.
 - PostgreSQL initialization and integration tests.
 - C++ CMake build, CTest, and JSON contract smoke testing.
 - Frontend build scaffolding.
 - ML source validation scaffolding.
 
 Each workflow supports manual dispatch and triggers on relevant source or
-workflow-file changes. Frontend and ML workflows remain limited until those
-components are implemented.
+workflow-file changes. Frontend integration remains separate; ML source and
+inference are covered independently until an authorized trained model is supplied.
 
 ## Documentation
 
@@ -178,6 +206,7 @@ components are implemented.
 - [Backend documentation](backend/README.md)
 - [Database documentation](database/README.md)
 - [C++ engine documentation](cpp/README.md)
+- [ML engine documentation](ml/README.md)
 
 ## Development principles
 

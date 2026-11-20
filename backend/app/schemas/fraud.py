@@ -41,6 +41,20 @@ class InvestigationClose(BaseModel):
     notes: str | None = Field(default=None, max_length=2000)
 
 
+class InvestigationAssignment(BaseModel):
+    assigned_user_id: int | None = Field(default=None, gt=0)
+    investigation_status: str = Field(pattern=r"^(open|in_progress|escalated)$")
+
+
+class InvestigationActionCreate(BaseModel):
+    action_type: str = Field(min_length=1, max_length=50, pattern=r"^[a-z0-9_.-]+$")
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class FraudAlertStatusUpdate(BaseModel):
+    alert_status: str = Field(pattern=r"^(open|under_review|dismissed|resolved)$")
+
+
 class InvestigationRead(BaseModel):
     investigation_id: int
     alert_id: int
@@ -51,3 +65,16 @@ class InvestigationRead(BaseModel):
     opened_at: datetime
     closed_at: datetime | None = None
     updated_at: datetime
+
+
+class InvestigationActionRead(BaseModel):
+    action_id: int
+    investigation_id: int
+    user_id: int | None = None
+    action_type: str
+    notes: str | None = None
+    action_timestamp: datetime
+
+
+class InvestigationDetailRead(InvestigationRead):
+    actions: list[InvestigationActionRead] = Field(default_factory=list)

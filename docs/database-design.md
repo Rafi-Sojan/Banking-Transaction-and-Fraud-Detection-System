@@ -1,6 +1,6 @@
 # Database Design
 
-Last updated: 2026-10-21
+Last updated: 2026-11-21
 
 The database layer uses PostgreSQL as the authoritative source for simulated
 financial records and fraud investigations. MongoDB is reserved for supporting
@@ -17,7 +17,7 @@ The implementation is split into ordered SQL layers:
 | Constraints | `database/schema/constraints.sql` | Adds status, score, currency, amount, and relationship checks. |
 | Indexes | `database/schema/indexes.sql` | Supports account, transaction, fraud, investigation, and audit queries. |
 | Triggers | `database/triggers/` | Maintains timestamps, status history, and protected state transitions. |
-| Functions | `database/procedures/` | Provides atomic transfers, fraud-alert creation, and investigation closing. |
+| Functions | `database/procedures/` | Provides atomic transfers, fraud-alert creation, investigation closing, and held/reversal lifecycle operations. |
 | Views | `database/views/` | Provides transaction and fraud reporting projections. |
 | Seed | `database/seed/data.sql` | Inserts repeatable synthetic demonstration data. |
 
@@ -127,6 +127,13 @@ separate from model predictions and rule flags.
 and updates the alert to `confirmed` only for `confirmed_fraud`; other outcomes
 resolve the alert without asserting fraud.
 
+`approve_held_transfer` locks the held transaction and both accounts, validates
+status/currency/funds, completes the transfer, and lets status-history triggers
+record the transition. `decline_held_transfer` records a controlled decline
+without moving balances. `reverse_completed_transfer` creates a separate
+completed refund transaction, moves the money back, marks the original as
+`reversed`, and is idempotent when given a reversal key.
+
 ## Initialization and tests
 
 Initialize the database with:
@@ -142,8 +149,9 @@ Run integration tests with:
 ```
 
 The tests verify the expected tables and seed data, atomic and idempotent
-transfers, status history, invalid amount rejection, and high-risk alert
-handling. They run inside a transaction and roll back all test records.
+transfers, status history, invalid amount rejection, high-risk holding, and
+approve/decline/reversal lifecycle behavior. They run inside a transaction and
+roll back all test records.
 
 See [function-reference.md](function-reference.md) for exact parameters,
 validation, side effects, and error behavior of each database function and
@@ -152,7 +160,7 @@ trigger function.
 ## Deliberate scope boundaries
 
 - PostgreSQL owns authoritative financial state.
-- MongoDB event storage is not yet implemented; only its intended boundary is defined.
-- ML scores are stored as model output metadata and are not treated as confirmed fraud.
+- MongoDB event storage supports best-effort writes, event indexes, and bounded investigator/admin reads; it remains non-authoritative.
+- ML scores are stored as model output metadata and are not treated as confirmed fraud. A model must be registered as `deployed` before its `ml_model_id` is attached to an alert.
 - Seed records are synthetic and contain no real customer, payment, or credential data.
 - Migrations are currently represented by ordered, repeatable SQL layers; a versioned migration tool can be introduced when the backend repository layer is added.

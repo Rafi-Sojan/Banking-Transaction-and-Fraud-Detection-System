@@ -3,8 +3,8 @@
 The backend is the application coordinator for the simulated banking and fraud
 detection system. It owns the HTTP API, authentication, PostgreSQL workflow,
 MongoDB supporting-event writes, and the deterministic C++ rule-engine call.
-Frontend wiring and ML inference are intentionally outside this implementation
-scope.
+Frontend wiring remains separate. Python ML inference is implemented as an
+opt-in engine and is disabled until a trained model is configured.
 
 ## Structure
 
@@ -17,7 +17,7 @@ backend/app/
 ├── schemas/                Pydantic request/response contracts
 ├── models/                 Domain model boundary documentation
 ├── services/               Transaction, fraud, and investigation workflows
-└── utils/                  Password, JWT, and validation helpers
+└── utils/                  Password, JWT, validation, and request helpers
 ```
 
 ## Local setup
@@ -36,16 +36,25 @@ The PostgreSQL schema must already be initialized with
 `database/setup.sql`. The C++ executable must be built at
 `cpp/build/fraud_engine.exe` or configured explicitly with `FRAUD_ENGINE_PATH`.
 
+To enable ML inference, install `ml\requirements.txt` into the same Python
+environment, train a model, and set `ML_ENABLED=true` and `ML_MODEL_PATH`.
+
 ## Implemented endpoints
 
 - `POST /api/v1/auth/login` and `GET /api/v1/auth/me`
+- `POST /api/v1/auth/users` and `GET /api/v1/auth/users`
 - `GET /api/v1/customers` and `GET /api/v1/customers/{id}`
 - `GET /api/v1/accounts` and `GET /api/v1/accounts/{id}`
 - `POST /api/v1/transactions/transfers`
 - `GET /api/v1/transactions` and `GET /api/v1/transactions/{id}`
+- `POST /api/v1/transactions/{id}/approve`, `/decline`, and `/reverse`
 - `GET /api/v1/fraud/alerts`
 - `POST /api/v1/fraud/alerts/{id}/investigations`
 - `POST /api/v1/fraud/investigations/{id}/close`
+- Investigation list/detail, assignment, action, and alert-status endpoints
+- `GET /api/v1/models`, model registration, and administrator-only deployment
+- `GET /api/v1/events` for optional MongoDB supporting events
+- `GET /api/v1/reports/audit` plus transaction/fraud reports
 - Investigator/admin transaction and fraud reports
 - `GET /health/live` and `GET /health/ready`
 
@@ -54,13 +63,20 @@ The PostgreSQL schema must already be initialized with
 1. The API validates the transfer request.
 2. The backend sends decision-time features to the C++ engine without shell
    interpolation.
-3. Low-risk transfers call PostgreSQL's atomic `process_transfer` function.
-4. Medium-risk transfers complete but can receive a persisted fraud alert.
-5. High/critical-risk transfers are inserted as pending and held by
+3. When `ML_ENABLED=true`, the backend invokes the versioned Python ML engine
+   and combines its probability with the C++ rule score.
+4. Low-risk transfers call PostgreSQL's atomic `process_transfer` function.
+5. Medium-risk transfers complete but can receive a persisted fraud alert.
+6. High/critical-risk transfers are inserted as pending and held by
    `create_fraud_alert`; balances are not changed.
-6. Rule-level results are stored in `fraud_rule_result` for explainability.
-7. Transfer and investigation actions are recorded in `audit_log`.
-8. A supporting event is attempted in MongoDB after PostgreSQL commits.
+7. Rule-level results are stored in `fraud_rule_result` for explainability.
+8. Transfer and investigation actions are recorded in `audit_log`.
+9. A supporting event is attempted in MongoDB after PostgreSQL commits.
+10. Investigators and administrators can approve, decline, or reverse transfers;
+    every lifecycle action is auditable.
+
+Request IDs are returned in `X-Request-ID`. Login and transfer writes have a
+configurable in-memory rate limit for this simulation (`RATE_LIMIT_*`).
 
 The backend never treats an unavailable fraud engine as low risk, and MongoDB
 does not become a second source of truth for balances or transaction state.

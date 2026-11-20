@@ -37,6 +37,9 @@ class MongoEventStore:
             connectTimeoutMS=settings.mongo_timeout_ms,
         )
         self._collection = self._client[settings.mongo_database]["events"]
+        self._collection.create_index([("event_type", 1), ("occurred_at", -1)])
+        self._collection.create_index([("occurred_at", -1)])
+        self._collection.create_index([("payload.transaction_id", 1), ("occurred_at", -1)])
         return self._collection
 
     def record_event(self, event_type: str, payload: dict[str, Any]) -> bool:
@@ -60,6 +63,24 @@ class MongoEventStore:
             return True
         except Exception:
             return False
+
+    def list_events(
+        self,
+        event_type: str | None = None,
+        transaction_id: int | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        try:
+            query: dict[str, Any] = {}
+            if event_type:
+                query["event_type"] = event_type
+            if transaction_id is not None:
+                query["payload.transaction_id"] = transaction_id
+            rows = self._collection_for_events().find(query, {"_id": 0}).sort("occurred_at", -1).limit(limit)
+            return list(rows)
+        except Exception as exc:
+            logger.warning("Unable to read supporting events: %s", exc)
+            return []
 
 
 @lru_cache(maxsize=1)

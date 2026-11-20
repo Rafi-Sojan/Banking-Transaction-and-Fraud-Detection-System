@@ -1,6 +1,6 @@
 # System Architecture
 
-Last updated: 2026-10-21
+Last updated: 2026-11-21
 
 The Banking Transaction and Fraud Detection System is an academic simulation of
 banking operations and fraud analysis. It uses a modular architecture so that
@@ -18,10 +18,10 @@ detection.
 | User interface | React and Vite | Scaffolding exists; end-to-end integration is pending. |
 | Application API | Python and FastAPI | Core API, auth, services, PostgreSQL workflow, MongoDB event adapter, and C++ adapter implemented. |
 | Authoritative data | PostgreSQL | Schema, routines, views, seed data, and integration tests implemented. |
-| Supporting events | MongoDB | Optional event-write adapter implemented; event queries remain out of scope. |
+| Supporting events | MongoDB | Optional writes, indexes, and investigator/admin event-query API implemented. |
 | Deterministic fraud rules | C++17 | Library, executable, JSON contract, and unit tests implemented. |
-| ML inference | Python, scikit-learn, Joblib | Planned; training and inference pipeline is pending. |
-| CI | GitHub Actions | C++ build, unit-test, and JSON smoke-test workflow implemented. |
+| ML inference | Python, scikit-learn, Joblib | PaySim training and JSON inference engine implemented; activation remains opt-in until a trained model is supplied. |
+| CI | GitHub Actions | Backend/PostgreSQL/C++ integration, database smoke, C++ validation, and ML checks implemented. |
 
 ## Component boundaries
 
@@ -50,6 +50,7 @@ FastAPI is the application coordinator. It is responsible for:
 - Invoking the Python ML inference component.
 - Combining rule and ML scores using a documented policy.
 - Calling PostgreSQL routines and persisting alerts, investigations, and audit records.
+- Providing controlled lifecycle, user-provisioning, model-registry, event, and audit-report APIs.
 - Error handling, logging, configuration, and response serialization.
 
 Route handlers should remain thin; business logic belongs in services and data
@@ -64,9 +65,11 @@ PostgreSQL is the source of truth for:
 - Fraud alerts, rule results, investigations, and actions.
 - Users, roles, fraud-rule configuration, ML-model metadata, and audit logs.
 
-Balance changes must use the atomic `process_transfer` database function. The
-database enforces foreign keys, constraints, idempotency, status transitions,
-and finalized-transaction protection.
+Balance changes must use the atomic `process_transfer` database function.
+Held approval, decline, and reversal are also database routines so the same
+locking and integrity rules apply. The database enforces foreign keys,
+constraints, idempotency, status transitions, and finalized-transaction
+protection.
 
 ### MongoDB
 
@@ -91,16 +94,18 @@ the final transaction authorization decision.
 
 ### Python ML component
 
-The ML component will own:
+The ML component owns:
 
 - PaySim preprocessing and feature engineering.
 - Reproducible training and evaluation.
 - Model and preprocessing-pipeline persistence.
-- Versioned inference.
+- Versioned JSON inference.
 - Metrics and model metadata.
 
-The model must use only decision-time features, exclude labels and leakage
-fields, and report fraud-class metrics separately from overall accuracy.
+The model uses only decision-time features, excludes labels and leakage fields,
+and reports fraud-class metrics separately from overall accuracy. The backend
+combines the C++ rule score and ML probability using configured weights only
+when `ML_ENABLED=true`.
 
 ## System architecture diagram
 
@@ -233,7 +238,8 @@ a local executable or controlled FastAPI subprocess.
   backend decision service; it must not silently be treated as a successful
   low-risk result.
 - Database transaction boundaries must preserve consistent account and alert
-  state.
+  state. MongoDB write failure is explicitly non-authoritative and does not
+  roll back a committed ledger operation.
 
 ## Security boundaries
 
