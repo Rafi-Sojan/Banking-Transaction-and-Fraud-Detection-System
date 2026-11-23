@@ -235,3 +235,9 @@ ML source, temporal validation, and inference are covered independently.
 - Keep secrets in environment variables and never commit `.env` files.
 - Treat frontend and ML as separate boundaries with explicit API and subprocess
   contracts.
+
+## Contributors
+
+- **Rafi Sojan** - [Rafi-Sojan](https://github.com/Rafi-Sojan)
+- **monicaguru 10** - [monicaguru10@gmail.com](mailto:monicaguru10@gmail.com)
+
